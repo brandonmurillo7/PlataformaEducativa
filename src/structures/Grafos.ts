@@ -3,14 +3,12 @@ import { NodoGrafo } from './NodoGrafo';
 export class Grafos<T> {
   private vertices: Map<string, NodoGrafo<T>> = new Map();
 
-  // Agregar un nuevo vértice al grafo
   public agregarVertice(id: string, valor: T): void {
     if (!this.vertices.has(id)) {
       this.vertices.set(id, new NodoGrafo(valor));
     }
   }
 
-  // Agregar una arista no dirigida entre dos vértices
   public agregarArista(id1: string, id2: string): void {
     const nodo1 = this.vertices.get(id1);
     const nodo2 = this.vertices.get(id2);
@@ -21,14 +19,12 @@ export class Grafos<T> {
     }
   }
 
-  // Obtener todos los nodos para su renderizado
   public obtenerVertices(): T[] {
     const resultado: T[] = [];
     this.vertices.forEach((nodo) => resultado.push(nodo.valor));
     return resultado;
   }
 
-  // Recorrido en Anchura (BFS)
   public bfs(idInicio: string): T[] {
     const nodoInicio = this.vertices.get(idInicio);
     if (!nodoInicio) return [];
@@ -53,7 +49,6 @@ export class Grafos<T> {
     return resultado;
   }
 
-  // Recorrido en Profundidad (DFS)
   public dfs(idInicio: string): T[] {
     const nodoInicio = this.vertices.get(idInicio);
     if (!nodoInicio) return [];

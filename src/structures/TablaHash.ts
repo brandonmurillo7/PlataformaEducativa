@@ -9,7 +9,6 @@ export class TablaHash<T> {
     this.tabla = new Array(tamano).fill(null);
   }
 
-  // Función Hash simple basada en el valor ASCII de la clave
   private hash(clave: string): number {
     let hash = 0;
     for (let i = 0; i < clave.length; i++) {
@@ -29,17 +28,15 @@ export class TablaHash<T> {
       let actual = this.tabla[indice];
       while (actual) {
         if (actual.clave === clave) {
-          actual.valor = valor; // Actualizar si existe
+          actual.valor = valor;
           return;
         }
         if (actual.siguiente === null) break;
         actual = actual.siguiente;
       }
-      actual!.siguiente = nuevoNodo; // Encadenamiento
+      actual!.siguiente = nuevoNodo; 
     }
   }
-
-  // Buscar por clave
   public get(clave: string): T | null {
     const indice = this.hash(clave);
     let actual = this.tabla[indice];
@@ -53,7 +50,6 @@ export class TablaHash<T> {
     return null;
   }
 
-  // Eliminar elemento por clave
   public remove(clave: string): boolean {
     const indice = this.hash(clave);
     let actual = this.tabla[indice];
@@ -74,7 +70,6 @@ export class TablaHash<T> {
     return false;
   }
 
-  // Listar todos los valores guardados
   public getAll(): T[] {
     const elementos: T[] = [];
     for (let i = 0; i < this.tamano; i++) {
