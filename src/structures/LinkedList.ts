@@ -1,17 +1,11 @@
 import { Node } from './node';
 
 export class LinkedList<T> {
-  private head: Node<T> | null;
-  private size: number;
+  private head: Node<T> | null = null;
+  private size: number = 0;
 
-  constructor() {
-    this.head = null;
-    this.size = 0;
-  }
-
-  // 1. Insertar al final de la lista
-  public insert(data: T): void {
-    const newNode = new Node(data);
+  public add(value: T): void {
+    const newNode = new Node(value);
     if (!this.head) {
       this.head = newNode;
     } else {
@@ -24,24 +18,10 @@ export class LinkedList<T> {
     this.size++;
   }
 
-  // 2. Buscar un elemento mediante una función de comparación (predicado)
-  public search(predicate: (data: T) => boolean): T | null {
-    let current = this.head;
-    while (current !== null) {
-      if (predicate(current.data)) {
-        return current.data;
-      }
-      current = current.next;
-    }
-    return null;
-  }
-
-  // 3. Eliminar un elemento mediante un predicado
-  public delete(predicate: (data: T) => boolean): boolean {
+  public remove(predicate: (value: T) => boolean): boolean {
     if (!this.head) return false;
 
-    // Si el elemento a eliminar es la cabeza (head)
-    if (predicate(this.head.data)) {
+    if (predicate(this.head.value)) {
       this.head = this.head.next;
       this.size--;
       return true;
@@ -49,7 +29,7 @@ export class LinkedList<T> {
 
     let current = this.head;
     while (current.next !== null) {
-      if (predicate(current.next.data)) {
+      if (predicate(current.next.value)) {
         current.next = current.next.next;
         this.size--;
         return true;
@@ -60,22 +40,17 @@ export class LinkedList<T> {
     return false;
   }
 
-  // 4. Recorrer la lista y retornar todos los elementos como un array (para renderizar en React Native)
   public traverse(): T[] {
     const elements: T[] = [];
     let current = this.head;
     while (current !== null) {
-      elements.push(current.data);
+      elements.push(current.value);
       current = current.next;
     }
     return elements;
   }
 
-  public getSize(): number {
-    return this.size;
-  }
-
-  public isEmpty(): boolean {
-    return this.head === null;
+  public toArray(): T[] {
+    return this.traverse();
   }
 }

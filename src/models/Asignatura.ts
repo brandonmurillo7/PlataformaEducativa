@@ -1,7 +1,7 @@
 export class Asignatura {
   constructor(
-    public code: string,
-    public name: string,
-    public credits: number
+    public codigo: string,
+    public nombre: string,
+    public uv: number
   ) {}
 }

@@ -2,9 +2,9 @@ import React, { createContext, useContext, useState } from 'react';
 import { LinkedList } from '../structures/LinkedList';
 import { Stack } from '../structures/Stack';
 import { Queue } from '../structures/Queue';
-import { BinarySearchTree } from '../structures/BinarySearchTree';
-import { HashTable } from '../structures/HashTable';
-import { Graph } from '../structures/Graph';
+import { ArbolBinario } from '../structures/ArbolBinario';
+import { TablaHash } from '../structures/TablaHash';
+import { Grafos } from '../structures/Grafos';
 
 import { Estudiantes } from '../models/Estudiantes';
 import { Asignatura } from '../models/Asignatura';
@@ -12,24 +12,24 @@ import { Calificaciones } from '../models/Calificaciones';
 import { Tutorias } from '../models/Tutorias';
 
 interface AppContextType {
-  studentTable: HashTable<Estudiantes>;
-  coursesList: LinkedList<Asignatura>;
-  submissionStack: Stack<string>;
-  tutoringQueue: Queue<Tutorias>;
-  gradesTree: BinarySearchTree<Asignatura>;
-  studentNetwork: Graph<Estudiantes>;
+  tablaEstudiantes: TablaHash<Estudiantes>;
+  listaAsignaturas: LinkedList<Asignatura>;
+  pilaEntregas: Stack<string>;
+  colaTutorias: Queue<Tutorias>;
+  arbolNotas: ArbolBinario<Calificaciones>;
+  redEstudiantes: Grafos<Estudiantes>;
   refreshState: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [studentTable] = useState(new HashTable<Estudiantes>(10));
-  const [coursesList] = useState(new LinkedList<Asignatura>());
-  const [submissionStack] = useState(new Stack<string>());
-  const [tutoringQueue] = useState(new Queue<Tutorias>());
-  const [gradesTree] = useState(new BinarySearchTree<Asignatura>());
-  const [studentNetwork] = useState(new Graph<Estudiantes>());
+  const [tablaEstudiantes] = useState(new TablaHash<Estudiantes>(10));
+  const [listaAsignaturas] = useState(new LinkedList<Asignatura>());
+  const [pilaEntregas] = useState(new Stack<string>());
+  const [colaTutorias] = useState(new Queue<Tutorias>());
+  const [arbolNotas] = useState(new ArbolBinario<Calificaciones>());
+  const [redEstudiantes] = useState(new Grafos<Estudiantes>());
 
   const [, setTick] = useState(0);
   const refreshState = () => setTick((prev) => prev + 1);
@@ -37,12 +37,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
-        studentTable,
-        coursesList,
-        submissionStack,
-        tutoringQueue,
-        gradesTree,
-        studentNetwork,
+        tablaEstudiantes,
+        listaAsignaturas,
+        pilaEntregas,
+        colaTutorias,
+        arbolNotas,
+        redEstudiantes,
         refreshState,
       }}
     >
