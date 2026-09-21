@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Alert,
 } from 'react-native';
@@ -17,6 +19,8 @@ export const AsignaturasScreen = () => {
   const [codigo, setCodigo] = useState('');
   const [nombre, setNombre] = useState('');
   const [uv, setUv] = useState('');
+  const [codigoBusqueda, setCodigoBusqueda] = useState('');
+  const [asignaturaEncontrada, setAsignaturaEncontrada] = useState<Asignatura | null>(null);
 
   const handleAgregar = () => {
     if (!codigo.trim() || !nombre.trim() || !uv.trim()) {
@@ -42,11 +46,34 @@ export const AsignaturasScreen = () => {
     refreshState();
   };
 
+  const handleBuscar = () => {
+    const codigoBuscado = codigoBusqueda.trim().toUpperCase();
+    if (!codigoBuscado) {
+      Alert.alert('Error', 'Ingresa un código para buscar.');
+      return;
+    }
+
+    const resultado = listaAsignaturas.find((item) => item.codigo === codigoBuscado);
+    setAsignaturaEncontrada(resultado);
+    if (!resultado) Alert.alert('No encontrada', 'No existe una asignatura con ese código.');
+  };
+
+  const handleEliminar = (codigoAEliminar: string) => {
+    if (listaAsignaturas.remove((item) => item.codigo === codigoAEliminar)) {
+      if (asignaturaEncontrada?.codigo === codigoAEliminar) setAsignaturaEncontrada(null);
+      refreshState();
+    }
+  };
+
   // Obtener arreglo de la lista para el FlatList
   const asignaturasArray = listaAsignaturas.toArray ? listaAsignaturas.toArray() : [];
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      style={styles.container}
+    >
       <Text style={styles.title}>Gestión de Asignaturas</Text>
       <Text style={styles.subtitle}>Estructura: Lista Enlazada (LinkedList)</Text>
 
@@ -80,16 +107,38 @@ export const AsignaturasScreen = () => {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchTitle}>Buscar en la lista enlazada</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Código de asignatura"
+          placeholderTextColor="#888"
+          value={codigoBusqueda}
+          onChangeText={setCodigoBusqueda}
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleBuscar}>
+          <Text style={styles.buttonText}>Buscar</Text>
+        </TouchableOpacity>
+        {asignaturaEncontrada && (
+          <Text style={styles.resultText}>
+            Encontrada: {asignaturaEncontrada.nombre} ({asignaturaEncontrada.uv} UV)
+          </Text>
+        )}
+      </View>
+
       {/* Visualización del Estado de la Lista */}
       <Text style={styles.sectionHeader}>
         Asignaturas Enlazadas ({asignaturasArray.length})
       </Text>
 
-      <FlatList
-        data={asignaturasArray}
-        keyExtractor={(item) => item.codigo}
-        renderItem={({ item, index }) => (
-          <View style={styles.card}>
+      <ScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {asignaturasArray.length > 0 ? asignaturasArray.map((item, index) => (
+          <View key={item.codigo} style={styles.card}>
             <View style={styles.nodeBadge}>
               <Text style={styles.nodeText}>Nodo #{index + 1}</Text>
             </View>
@@ -98,13 +147,18 @@ export const AsignaturasScreen = () => {
               <Text style={styles.itemName}>{item.nombre}</Text>
               <Text style={styles.itemUv}>{item.uv} UV</Text>
             </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleEliminar(item.codigo)}
+            >
+              <Text style={styles.deleteText}>Eliminar</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        ListEmptyComponent={
+        )) : (
           <Text style={styles.emptyText}>No hay asignaturas en la lista enlazada.</Text>
-        }
-      />
-    </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -129,6 +183,29 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
+  },
+  searchContainer: {
+    backgroundColor: '#1E293B',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+  },
+  searchTitle: {
+    color: '#E2E8F0',
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  searchButton: {
+    backgroundColor: '#0891B2',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  resultText: {
+    color: '#A5F3FC',
+    marginTop: 10,
   },
   input: {
     backgroundColor: '#0F172A',
@@ -181,6 +258,17 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flex: 1,
+  },
+  deleteButton: {
+    backgroundColor: '#991B1B',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  deleteText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   itemCode: {
     color: '#94A3B8',

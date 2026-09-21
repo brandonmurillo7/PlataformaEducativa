@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Alert,
 } from 'react-native';
@@ -27,7 +29,7 @@ export const TutoriasScreen = () => {
 
     const nuevaTutoria = new Tutorias(
       estudiante.trim(),
-      materia.trim(),
+      estudiante.trim(),
       tema.trim()
     );
 
@@ -52,7 +54,7 @@ export const TutoriasScreen = () => {
     if (tutoriaAtendida) {
       Alert.alert(
         'Tutoría Atendida',
-        `Se atendió a ${tutoriaAtendida.estudiante} en la materia ${tutoriaAtendida.materia}.`
+        `Se atendió a ${tutoriaAtendida.nombreEstudiante} sobre ${tutoriaAtendida.tema}.`
       );
     }
   };
@@ -61,7 +63,11 @@ export const TutoriasScreen = () => {
   const proximaTutoria = colaTutorias.peek();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      style={styles.container}
+    >
       <Text style={styles.title}>Cola de Tutorías</Text>
       <Text style={styles.subtitle}>Estructura: Cola (Queue - FIFO)</Text>
 
@@ -104,7 +110,7 @@ export const TutoriasScreen = () => {
       {proximaTutoria && (
         <View style={styles.headCard}>
           <Text style={styles.headLabel}>SIGUIENTE EN ATENDER (PEEK):</Text>
-          <Text style={styles.headValue}>{proximaTutoria.estudiante} - {proximaTutoria.materia}</Text>
+          <Text style={styles.headValue}>{proximaTutoria.nombreEstudiante}</Text>
           <Text style={styles.headSubtext}>Tema: {proximaTutoria.tema}</Text>
         </View>
       )}
@@ -114,28 +120,30 @@ export const TutoriasScreen = () => {
         Estudiantes en Espera ({tutoriasArray.length})
       </Text>
 
-      <FlatList
-        data={tutoriasArray}
-        keyExtractor={(_, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <View style={[styles.card, index === 0 && styles.cardHead]}>
+      <ScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {tutoriasArray.length > 0 ? tutoriasArray.map((item, index) => (
+          <View key={`${item.idEstudiante}-${index}`} style={[styles.card, index === 0 && styles.cardHead]}>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
                 {index === 0 ? 'TURNO 1' : `Turno #${index + 1}`}
               </Text>
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.itemName}>{item.estudiante}</Text>
-              <Text style={styles.itemMateria}>{item.materia}</Text>
+              <Text style={styles.itemName}>{item.nombreEstudiante}</Text>
+              <Text style={styles.itemMateria}>Solicitud de tutoría</Text>
               <Text style={styles.itemTema}>Tema: {item.tema}</Text>
             </View>
           </View>
-        )}
-        ListEmptyComponent={
+        )) : (
           <Text style={styles.emptyText}>La cola está vacía. No hay tutorías pendientes.</Text>
-        }
-      />
-    </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 

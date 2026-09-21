@@ -29,6 +29,19 @@ export class ArbolBinario<T> {
     }
   }
 
+  public search(clave: number): T | null {
+    let nodoActual = this.raiz;
+
+    while (nodoActual !== null) {
+      if (clave === nodoActual.clave) return nodoActual.valor;
+      nodoActual = clave < nodoActual.clave
+        ? nodoActual.izquierdo
+        : nodoActual.derecho;
+    }
+
+    return null;
+  }
+
   // Recorrido Inorden (Izquierda - Raíz - Derecha)
   public inOrden(nodo: NodoArbol<T> | null = this.raiz, resultado: T[] = []): T[] {
     if (nodo !== null) {

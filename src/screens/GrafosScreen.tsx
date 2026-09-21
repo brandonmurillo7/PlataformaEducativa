@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Alert,
 } from 'react-native';
 import { useAppData } from '../context/AppDataContext';
+import { Estudiantes } from '../models/Estudiantes';
 
 export const GrafosScreen = () => {
   const { redEstudiantes, refreshState } = useAppData();
@@ -16,6 +19,9 @@ export const GrafosScreen = () => {
   const [estudianteOrigen, setEstudianteOrigen] = useState('');
   const [estudianteDestino, setEstudianteDestino] = useState('');
   const [nuevoEstudiante, setNuevoEstudiante] = useState('');
+  const [inicioRecorrido, setInicioRecorrido] = useState('');
+  const [modoRecorrido, setModoRecorrido] = useState<'bfs' | 'dfs'>('bfs');
+  const [resultadoRecorrido, setResultadoRecorrido] = useState<string[]>([]);
 
   // Agregar un nodo al grafo
   const handleAgregarNodo = () => {
@@ -24,7 +30,11 @@ export const GrafosScreen = () => {
       return;
     }
 
-    (redEstudiantes as any).agregarVertice?.(nuevoEstudiante.trim());
+    const nombre = nuevoEstudiante.trim();
+    redEstudiantes.agregarVertice(
+      nombre,
+      new Estudiantes(nombre, nombre, '', '')
+    );
     setNuevoEstudiante('');
     refreshState();
     Alert.alert('Éxito', 'Estudiante agregado a la red.');
@@ -42,10 +52,14 @@ export const GrafosScreen = () => {
       return;
     }
 
-    (redEstudiantes as any).agregarArista?.(
-      estudianteOrigen.trim(),
-      estudianteDestino.trim()
-    );
+    const origen = estudianteOrigen.trim();
+    const destino = estudianteDestino.trim();
+    if (!redEstudiantes.tieneVertice(origen) || !redEstudiantes.tieneVertice(destino)) {
+      Alert.alert('Error', 'Primero registra ambos estudiantes como nodos.');
+      return;
+    }
+
+    redEstudiantes.agregarArista(origen, destino);
 
     setEstudianteOrigen('');
     setEstudianteDestino('');
@@ -53,19 +67,34 @@ export const GrafosScreen = () => {
     Alert.alert('Éxito', 'Conexión establecida entre estudiantes.');
   };
 
-  // Mapeo seguro del Map de adyacencia
-  const adyacenciaMap = (redEstudiantes as any)?.adyacencia;
-  const listaAdyacencia = adyacenciaMap
-    ? Array.from(adyacenciaMap.entries()).map(([vertice, vecinos]: any) => ({
-        vertice: typeof vertice === 'object' ? vertice.nombre || String(vertice) : String(vertice),
-        vecinos: Array.from(vecinos || []).map((v: any) =>
-          typeof v === 'object' ? v.nombre || String(v) : String(v)
-        ),
-      }))
-    : [];
+  const listaAdyacencia = redEstudiantes.obtenerAdyacencia().map(({ id, vecinos }) => ({
+    vertice: id,
+    vecinos: vecinos.map((vecino) => vecino.nombre),
+  }));
+
+  const handleRecorrido = () => {
+    const inicio = inicioRecorrido.trim();
+    if (!inicio) {
+      Alert.alert('Error', 'Ingresa el nombre del estudiante inicial.');
+      return;
+    }
+    if (!redEstudiantes.tieneVertice(inicio)) {
+      Alert.alert('Error', 'El estudiante inicial no está registrado en la red.');
+      return;
+    }
+
+    const resultado = modoRecorrido === 'bfs'
+      ? redEstudiantes.bfs(inicio)
+      : redEstudiantes.dfs(inicio);
+    setResultadoRecorrido(resultado.map((estudiante) => estudiante.nombre));
+  };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      style={styles.container}
+    >
       <Text style={styles.title}>Red de Estudiantes</Text>
       <Text style={styles.subtitle}>
         Estructura: Grafo No Dirigido (Lista de Adyacencia)
@@ -111,13 +140,49 @@ export const GrafosScreen = () => {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.formContainer}>
+        <Text style={styles.sectionTitle}>3. Recorrer la red</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Estudiante inicial"
+          placeholderTextColor="#888"
+          value={inicioRecorrido}
+          onChangeText={setInicioRecorrido}
+        />
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            style={[styles.modeButton, modoRecorrido === 'bfs' && styles.modeButtonActive]}
+            onPress={() => setModoRecorrido('bfs')}
+          >
+            <Text style={styles.buttonText}>BFS</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeButton, modoRecorrido === 'dfs' && styles.modeButtonActive]}
+            onPress={() => setModoRecorrido('dfs')}
+          >
+            <Text style={styles.buttonText}>DFS</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.button} onPress={handleRecorrido}>
+          <Text style={styles.buttonText}>Ejecutar recorrido</Text>
+        </TouchableOpacity>
+        {resultadoRecorrido.length > 0 && (
+          <Text style={styles.traversalResult}>
+            {modoRecorrido.toUpperCase()}: {resultadoRecorrido.join(' -> ')}
+          </Text>
+        )}
+      </View>
+
       {/* Visualización de la Red */}
       <Text style={styles.sectionTitle}>Lista de Conexiones</Text>
-      <FlatList
-        data={listaAdyacencia}
-        keyExtractor={(item, index) => `${item.vertice}-${index}`}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
+      <ScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {listaAdyacencia.length > 0 ? listaAdyacencia.map((item) => (
+          <View key={item.vertice} style={styles.card}>
             <Text style={styles.nodeName}>👤 {item.vertice}</Text>
             <Text style={styles.connectionsTitle}>Conectado con:</Text>
             {item.vecinos.length > 0 ? (
@@ -134,14 +199,13 @@ export const GrafosScreen = () => {
               </Text>
             )}
           </View>
-        )}
-        ListEmptyComponent={
+        )) : (
           <Text style={styles.emptyText}>
             No hay estudiantes en la red universitaria.
           </Text>
-        }
-      />
-    </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -192,6 +256,26 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     backgroundColor: '#6D28D9',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  modeButton: {
+    flex: 1,
+    backgroundColor: '#334155',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#6D28D9',
+  },
+  traversalResult: {
+    color: '#DDD6FE',
+    fontWeight: '600',
+    marginTop: 10,
   },
   buttonText: {
     color: '#FFFFFF',

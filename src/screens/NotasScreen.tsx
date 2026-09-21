@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Alert,
 } from 'react-native';
@@ -16,6 +18,8 @@ export const NotasScreen = () => {
 
   const [asignatura, setAsignatura] = useState('');
   const [notaInput, setNotaInput] = useState('');
+  const [notaBusqueda, setNotaBusqueda] = useState('');
+  const [calificacionEncontrada, setCalificacionEncontrada] = useState<Calificaciones | null>(null);
   const [tipoRecorrido, setTipoRecorrido] = useState<'inOrden' | 'preOrden' | 'postOrden'>('inOrden');
 
   const handleAgregar = () => {
@@ -44,6 +48,18 @@ export const NotasScreen = () => {
     Alert.alert('Éxito', 'Calificación registrada en el árbol binario.');
   };
 
+  const handleBuscar = () => {
+    const clave = parseFloat(notaBusqueda);
+    if (isNaN(clave) || clave < 0 || clave > 100) {
+      Alert.alert('Error', 'Ingresa una nota válida entre 0 y 100 para buscar.');
+      return;
+    }
+
+    const resultado = arbolNotas.search(clave);
+    setCalificacionEncontrada(resultado);
+    if (!resultado) Alert.alert('No encontrada', 'No existe una calificación con esa nota.');
+  };
+
   const obtenerRecorrido = (): Calificaciones[] => {
     if (!arbolNotas) return [];
 
@@ -61,7 +77,11 @@ export const NotasScreen = () => {
   const notasProcesadas: Calificaciones[] = obtenerRecorrido();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      style={styles.container}
+    >
       <Text style={styles.title}>Gestión de Calificaciones (Árbol Binario)</Text>
 
       {/* Formulario */}
@@ -88,6 +108,26 @@ export const NotasScreen = () => {
         <TouchableOpacity style={styles.button} onPress={handleAgregar}>
           <Text style={styles.buttonText}>Agregar al Árbol</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchCard}>
+        <Text style={styles.subTitle}>Buscar en el árbol por nota</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Nota exacta (0 - 100)"
+          placeholderTextColor="#999"
+          keyboardType="numeric"
+          value={notaBusqueda}
+          onChangeText={setNotaBusqueda}
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleBuscar}>
+          <Text style={styles.buttonText}>Buscar calificación</Text>
+        </TouchableOpacity>
+        {calificacionEncontrada && (
+          <Text style={styles.resultText}>
+            Encontrada: {calificacionEncontrada.codigoAsignatura} con nota {calificacionEncontrada.nota}
+          </Text>
+        )}
       </View>
 
       {/* Recorridos */}
@@ -146,13 +186,14 @@ export const NotasScreen = () => {
       </View>
 
       {/* Lista */}
-      <FlatList
-        data={notasProcesadas}
-        keyExtractor={(item, index) =>
-          `${item.codigoAsignatura}-${item.nota}-${index}`
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
+      <ScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {notasProcesadas.length > 0 ? notasProcesadas.map((item, index) => (
+          <View key={`${item.codigoAsignatura}-${item.nota}-${index}`} style={styles.card}>
             <View style={styles.gradeBadge}>
               <Text style={styles.gradeText}>{item.nota}</Text>
             </View>
@@ -162,14 +203,13 @@ export const NotasScreen = () => {
               </Text>
             </View>
           </View>
-        )}
-        ListEmptyComponent={
+        )) : (
           <Text style={styles.emptyText}>
             El árbol no tiene calificaciones registradas.
           </Text>
-        }
-      />
-    </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -198,6 +238,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
   },
+  searchCard: {
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BE185D',
+  },
   input: {
     backgroundColor: '#0F172A',
     borderWidth: 1,
@@ -218,6 +266,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  searchButton: {
+    backgroundColor: '#BE185D',
+    padding: 13,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  resultText: {
+    color: '#FBCFE8',
+    marginTop: 10,
   },
   recorridoContainer: {
     flexDirection: 'row',

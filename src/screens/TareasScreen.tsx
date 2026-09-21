@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Alert,
 } from 'react-native';
@@ -43,7 +45,11 @@ export const TareasScreen = () => {
   const topeTarea = pilaEntregas.peek();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      style={styles.container}
+    >
       <Text style={styles.title}>Entregas de Tareas</Text>
       <Text style={styles.subtitle}>Estructura: Pila (Stack - LIFO)</Text>
 
@@ -81,11 +87,14 @@ export const TareasScreen = () => {
         Estado Actual de la Pila ({tareasArray.length})
       </Text>
 
-      <FlatList
-        data={tareasArray}
-        keyExtractor={(_, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <View style={[styles.card, index === 0 && styles.cardTop]}>
+      <ScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {tareasArray.length > 0 ? tareasArray.map((item, index) => (
+          <View key={`${item}-${index}`} style={[styles.card, index === 0 && styles.cardTop]}>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
                 {index === 0 ? 'TOPE' : `Posición #${tareasArray.length - index}`}
@@ -93,12 +102,11 @@ export const TareasScreen = () => {
             </View>
             <Text style={styles.itemText}>{item}</Text>
           </View>
-        )}
-        ListEmptyComponent={
+        )) : (
           <Text style={styles.emptyText}>La pila está vacía. Agrega una entrega con Push.</Text>
-        }
-      />
-    </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 

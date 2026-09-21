@@ -40,6 +40,15 @@ export class LinkedList<T> {
     return false;
   }
 
+  public find(predicate: (value: T) => boolean): T | null {
+    let current = this.head;
+    while (current !== null) {
+      if (predicate(current.value)) return current.value;
+      current = current.next;
+    }
+    return null;
+  }
+
   public traverse(): T[] {
     const elements: T[] = [];
     let current = this.head;

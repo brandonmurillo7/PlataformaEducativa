@@ -9,6 +9,10 @@ export class Grafos<T> {
     }
   }
 
+  public tieneVertice(id: string): boolean {
+    return this.vertices.has(id);
+  }
+
   public agregarArista(id1: string, id2: string): void {
     const nodo1 = this.vertices.get(id1);
     const nodo2 = this.vertices.get(id2);
@@ -22,6 +26,17 @@ export class Grafos<T> {
   public obtenerVertices(): T[] {
     const resultado: T[] = [];
     this.vertices.forEach((nodo) => resultado.push(nodo.valor));
+    return resultado;
+  }
+
+  public obtenerAdyacencia(): Array<{ id: string; vecinos: T[] }> {
+    const resultado: Array<{ id: string; vecinos: T[] }> = [];
+    this.vertices.forEach((nodo, id) => {
+      resultado.push({
+        id,
+        vecinos: nodo.vecinos.map((vecino) => vecino.valor),
+      });
+    });
     return resultado;
   }
 

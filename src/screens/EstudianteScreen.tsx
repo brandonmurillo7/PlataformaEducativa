@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Alert,
 } from 'react-native';
@@ -66,7 +68,11 @@ export const EstudiantesScreen = () => {
   const estudiantesList = tablaEstudiantes.getAll();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      style={styles.container}
+    >
       <Text style={styles.title}>Registro de Estudiantes</Text>
       <Text style={styles.subtitle}>Estructura: Tabla Hash (HashTable)</Text>
 
@@ -139,11 +145,14 @@ export const EstudiantesScreen = () => {
         Estudiantes Registrados ({estudiantesList.length})
       </Text>
 
-      <FlatList
-        data={estudiantesList}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
+      <ScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {estudiantesList.length > 0 ? estudiantesList.map((item) => (
+          <View key={item.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.itemCode}>ID: {item.id}</Text>
               <Text style={styles.itemCarrera}>{item.carrera}</Text>
@@ -151,12 +160,11 @@ export const EstudiantesScreen = () => {
             <Text style={styles.itemName}>{item.nombre}</Text>
             <Text style={styles.itemCorreo}>{item.correo}</Text>
           </View>
-        )}
-        ListEmptyComponent={
+        )) : (
           <Text style={styles.emptyText}>No hay estudiantes registrados en la tabla hash.</Text>
-        }
-      />
-    </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -227,6 +235,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  listContent: {
+    paddingBottom: 120,
   },
   button: {
     backgroundColor: '#10B981',

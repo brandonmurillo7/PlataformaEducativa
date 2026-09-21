@@ -10,9 +10,11 @@ import { Estudiantes } from '../models/Estudiantes';
 import { Asignatura } from '../models/Asignatura';
 import { Calificaciones } from '../models/Calificaciones';
 import { Tutorias } from '../models/Tutorias';
+import { Usuario } from '../models/Usuario';
 
 interface AppContextType {
   tablaEstudiantes: TablaHash<Estudiantes>;
+  tablaUsuarios: TablaHash<Usuario>;
   listaAsignaturas: LinkedList<Asignatura>;
   pilaEntregas: Stack<string>;
   colaTutorias: Queue<Tutorias>;
@@ -25,6 +27,14 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tablaEstudiantes] = useState(new TablaHash<Estudiantes>(10));
+  const [tablaUsuarios] = useState(() => {
+    const tabla = new TablaHash<Usuario>(10);
+    tabla.set(
+      'estudiante@campus.edu',
+      new Usuario('estudiante@campus.edu', 'Estudiante Demo', '123')
+    );
+    return tabla;
+  });
   const [listaAsignaturas] = useState(new LinkedList<Asignatura>());
   const [pilaEntregas] = useState(new Stack<string>());
   const [colaTutorias] = useState(new Queue<Tutorias>());
@@ -38,6 +48,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         tablaEstudiantes,
+        tablaUsuarios,
         listaAsignaturas,
         pilaEntregas,
         colaTutorias,

@@ -1,38 +1,21 @@
-import React from 'react';
-import { StyleSheet, View, Text, SafeAreaView } from 'react-native';
+import React, { useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from './src/context/AppDataContext';
+import { AppNavigator } from './src/navigation/AppNavigator';
+import LoginScreen from './src/screens/LoginScreen';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   return (
-    <AppProvider>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>🎓 Campus Virtual ED</Text>
-          <Text style={styles.subtitle}>Estructuras de Datos Manuales</Text>
-        </View>
-      </SafeAreaView>
-    </AppProvider>
+    <SafeAreaProvider>
+      <AppProvider>
+        {isAuthenticated ? (
+          <AppNavigator />
+        ) : (
+          <LoginScreen onLogin={() => setIsAuthenticated(true)} />
+        )}
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#003366',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#e0e0e0',
-    marginTop: 4,
-  },
-});
