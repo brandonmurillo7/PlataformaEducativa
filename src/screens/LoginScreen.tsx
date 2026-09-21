@@ -10,21 +10,23 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useAppData } from '../context/AppDataContext';
+import { supabase } from '../lib/supabase';
+import { Usuario } from '../models/Usuario';
 
 type LoginScreenProps = {
-  onLogin: () => void;
+  onLogin: (usuario: Usuario) => void;
 };
 
 const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
 
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
-  const { tablaUsuarios } = useAppData();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail || !password) {
@@ -37,14 +39,36 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       return;
     }
 
-    const usuario = tablaUsuarios.get(normalizedEmail);
-    if (!usuario || usuario.password !== password) {
-      setError('Correo o contraseña incorrectos. Usa estudiante@campus.edu / 123.');
-      return;
-    }
+    setIsLoading(true);
 
-    setError('');
-    onLogin();
+    try {
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (loginError || !data.user) {
+        const message = loginError?.message.toLowerCase() ?? '';
+        if (message.includes('email not confirmed')) {
+          setError('Confirma tu correo desde el enlace que envió Supabase.');
+        } else if (message.includes('invalid login credentials')) {
+          setError('El correo o la contraseña no son correctos.');
+        } else {
+          setError(loginError?.message || 'No se pudo iniciar sesión.');
+        }
+        return;
+      }
+
+      setError('');
+      const nombre = data.user.user_metadata?.full_name
+        || data.user.user_metadata?.name
+        || normalizedEmail.split('@')[0];
+      onLogin(new Usuario(normalizedEmail, nombre, ''));
+    } catch {
+      setError('No hay conexión con Supabase. Revisa tu internet e inténtalo de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -96,30 +120,43 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Contraseña</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoComplete="password"
-                onChangeText={(value) => {
-                  setPassword(value);
-                  setError('');
-                }}
-                placeholder="Escribe tu contraseña"
-                placeholderTextColor="#8B96A8"
-                secureTextEntry
-                style={styles.input}
-                value={password}
-              />
+              <View style={styles.passwordRow}>
+                <TextInput
+                  autoCapitalize="none"
+                  autoComplete="password"
+                  onChangeText={(value) => {
+                    setPassword(value);
+                    setError('');
+                  }}
+                  placeholder="Escribe tu contraseña"
+                  placeholderTextColor="#8B96A8"
+                  secureTextEntry={!showPassword}
+                  style={[styles.input, styles.passwordInput]}
+                  value={password}
+                />
+                <Pressable
+                  accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  accessibilityRole="button"
+                  onPress={() => setShowPassword((visible) => !visible)}
+                  style={styles.passwordToggle}
+                >
+                  <Text style={styles.passwordToggleText}>{showPassword ? '◉' : '◌'}</Text>
+                </Pressable>
+              </View>
             </View>
 
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 
             <Pressable
               accessibilityRole="button"
+              disabled={isLoading}
               onPress={handleLogin}
               style={({ pressed }) => [styles.loginButton, pressed && styles.pressed]}
             >
-              <Text style={styles.loginButtonText}>Entrar al campus</Text>
-              <Text style={styles.arrow}>→</Text>
+              <Text style={styles.loginButtonText}>
+                {isLoading ? 'Verificando...' : 'Entrar al campus'}
+              </Text>
+              {!isLoading && <Text style={styles.arrow}>→</Text>}
             </Pressable>
 
             <Pressable
@@ -224,6 +261,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     height: 52,
     paddingHorizontal: 15,
+  },
+  passwordRow: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 54,
+  },
+  passwordToggle: {
+    alignItems: 'center',
+    height: 52,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 4,
+    top: 0,
+    width: 46,
+  },
+  passwordToggleText: {
+    color: '#2A756D',
+    fontSize: 23,
+    fontWeight: '700',
   },
   errorText: {
     color: '#B13B3B',

@@ -10,10 +10,17 @@ import GrafosScreen from '../screens/GrafosScreen';
 import { NotasScreen } from '../screens/NotasScreen';
 import { TareasScreen } from '../screens/TareasScreen';
 import { TutoriasScreen } from '../screens/TutoriasScreen';
+import PerfilScreen from '../screens/PerfilScreen';
+import { Usuario } from '../models/Usuario';
 
 const Tab = createBottomTabNavigator();
 
-export const AppNavigator = () => {
+type AppNavigatorProps = {
+  usuario: Usuario;
+  onLogout: () => void;
+};
+
+export const AppNavigator = ({ usuario, onLogout }: AppNavigatorProps) => {
   const insets = useSafeAreaInsets();
 
   return (
@@ -82,6 +89,15 @@ export const AppNavigator = () => {
             tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 19 }}>🎓</Text>,
           }}
         />
+        <Tab.Screen
+          name="Perfil"
+          options={{
+            title: 'Perfil',
+            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 19 }}>👤</Text>,
+          }}
+        >
+          {() => <PerfilScreen usuario={usuario} onLogout={onLogout} />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
