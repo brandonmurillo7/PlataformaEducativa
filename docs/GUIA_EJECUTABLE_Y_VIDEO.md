@@ -19,6 +19,13 @@ npx eas build --platform android --profile preview
 
 Cuando el proceso termine, EAS mostrará un enlace para descargar el APK.
 
+### Enlace de descarga del APK
+
+Pega aquí el enlace que entregue EAS:
+
+https://expo.dev/accounts/brandonmurillo/projects/temp_app/builds/116ecfa9-a389-4362-adc2-7f74c31f0446
+
+
 Antes de compilar, verifica:
 
 - Que `EXPO_PUBLIC_SUPABASE_URL` esté configurada.

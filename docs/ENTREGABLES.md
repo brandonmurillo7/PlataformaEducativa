@@ -2,6 +2,7 @@
 
 - [x] Código fuente completo: raíz del proyecto y carpetas `src/` y `supabase/`.
 - [ ] Ejecutable APK: generar con EAS Build siguiendo `GUIA_EJECUTABLE_Y_VIDEO.md`.
+	- Enlace de descarga: `[https://expo.dev/accounts/brandonmurillo/projects/temp_app/builds/116ecfa9-a389-4362-adc2-7f74c31f0446]`
 - [x] Manual de usuario: `MANUAL_USUARIO.md`.
 - [x] Documento técnico base: `DOCUMENTO_TECNICO.md`.
 - [ ] Capturas reales del sistema: tomar durante la ejecución y agregarlas al documento técnico.
