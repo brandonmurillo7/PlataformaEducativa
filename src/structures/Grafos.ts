@@ -13,6 +13,10 @@ export class Grafos<T> {
     return this.vertices.has(id);
   }
 
+  public limpiar(): void {
+    this.vertices.clear();
+  }
+
   public agregarArista(id1: string, id2: string): void {
     const nodo1 = this.vertices.get(id1);
     const nodo2 = this.vertices.get(id2);
@@ -20,6 +24,16 @@ export class Grafos<T> {
     if (nodo1 && nodo2) {
       if (!nodo1.vecinos.includes(nodo2)) nodo1.vecinos.push(nodo2);
       if (!nodo2.vecinos.includes(nodo1)) nodo2.vecinos.push(nodo1);
+    }
+  }
+
+  public eliminarArista(id1: string, id2: string): void {
+    const nodo1 = this.vertices.get(id1);
+    const nodo2 = this.vertices.get(id2);
+
+    if (nodo1 && nodo2) {
+      nodo1.vecinos = nodo1.vecinos.filter((vecino) => vecino !== nodo2);
+      nodo2.vecinos = nodo2.vecinos.filter((vecino) => vecino !== nodo1);
     }
   }
 

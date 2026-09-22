@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAppData } from '../context/AppDataContext';
 import { Asignatura } from '../models/Asignatura';
+import { supabase } from '../lib/supabase';
 
 export const AsignaturasScreen = () => {
   const { listaAsignaturas, refreshState } = useAppData();
@@ -22,7 +23,27 @@ export const AsignaturasScreen = () => {
   const [codigoBusqueda, setCodigoBusqueda] = useState('');
   const [asignaturaEncontrada, setAsignaturaEncontrada] = useState<Asignatura | null>(null);
 
-  const handleAgregar = () => {
+  useEffect(() => {
+    const cargarAsignaturas = async () => {
+      const { data, error } = await supabase
+        .from('asignaturas')
+        .select('codigo, nombre, uv')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        Alert.alert('Error de conexión', 'No se pudieron cargar las asignaturas.');
+        return;
+      }
+
+      listaAsignaturas.clear();
+      data.forEach((item) => listaAsignaturas.add(new Asignatura(item.codigo, item.nombre, item.uv)));
+      refreshState();
+    };
+
+    void cargarAsignaturas();
+  }, [listaAsignaturas, refreshState]);
+
+  const handleAgregar = async () => {
     if (!codigo.trim() || !nombre.trim() || !uv.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos.');
       return;
@@ -35,6 +56,17 @@ export const AsignaturasScreen = () => {
     }
 
     const nuevaAsignatura = new Asignatura(codigo.toUpperCase().trim(), nombre.trim(), numUv);
+
+    const { error } = await supabase.from('asignaturas').upsert({
+      codigo: nuevaAsignatura.codigo,
+      nombre: nuevaAsignatura.nombre,
+      uv: nuevaAsignatura.uv,
+    });
+
+    if (error) {
+      Alert.alert('Error', `No se pudo guardar la asignatura: ${error.message}`);
+      return;
+    }
     
     // Insertar en la Lista Enlazada
     listaAsignaturas.add(nuevaAsignatura);
@@ -58,11 +90,35 @@ export const AsignaturasScreen = () => {
     if (!resultado) Alert.alert('No encontrada', 'No existe una asignatura con ese código.');
   };
 
-  const handleEliminar = (codigoAEliminar: string) => {
-    if (listaAsignaturas.remove((item) => item.codigo === codigoAEliminar)) {
-      if (asignaturaEncontrada?.codigo === codigoAEliminar) setAsignaturaEncontrada(null);
-      refreshState();
-    }
+  const handleEliminar = async (codigoAEliminar: string) => {
+    Alert.alert('Eliminar materia', 'También se eliminarán sus calificaciones. ¿Deseas continuar?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          const { error: gradesError } = await supabase
+            .from('calificaciones')
+            .delete()
+            .eq('codigo_asignatura', codigoAEliminar);
+          if (gradesError) {
+            Alert.alert('Error', `No se pudieron eliminar sus calificaciones: ${gradesError.message}`);
+            return;
+          }
+
+          const { error } = await supabase.from('asignaturas').delete().eq('codigo', codigoAEliminar);
+          if (error) {
+            Alert.alert('Error', `No se pudo eliminar la materia: ${error.message}`);
+            return;
+          }
+
+          if (listaAsignaturas.remove((item) => item.codigo === codigoAEliminar)) {
+            if (asignaturaEncontrada?.codigo === codigoAEliminar) setAsignaturaEncontrada(null);
+            refreshState();
+          }
+        },
+      },
+    ]);
   };
 
   // Obtener arreglo de la lista para el FlatList
@@ -74,8 +130,14 @@ export const AsignaturasScreen = () => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       style={styles.container}
     >
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={styles.title}>Gestión de Asignaturas</Text>
-      <Text style={styles.subtitle}>Estructura: Lista Enlazada (LinkedList)</Text>
+      <Text style={styles.subtitle}>Materias registradas en orden</Text>
 
       {/* Formulario de Registro */}
       <View style={styles.formContainer}>
@@ -103,12 +165,12 @@ export const AsignaturasScreen = () => {
         />
 
         <TouchableOpacity style={styles.button} onPress={handleAgregar}>
-          <Text style={styles.buttonText}>Agregar a Lista Enlazada</Text>
+          <Text style={styles.buttonText}>Agregar materia</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
-        <Text style={styles.searchTitle}>Buscar en la lista enlazada</Text>
+        <Text style={styles.searchTitle}>Buscar materia</Text>
         <TextInput
           style={styles.input}
           placeholder="Código de asignatura"
@@ -131,16 +193,11 @@ export const AsignaturasScreen = () => {
         Asignaturas Enlazadas ({asignaturasArray.length})
       </Text>
 
-      <ScrollView
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View>
         {asignaturasArray.length > 0 ? asignaturasArray.map((item, index) => (
           <View key={item.codigo} style={styles.card}>
             <View style={styles.nodeBadge}>
-              <Text style={styles.nodeText}>Nodo #{index + 1}</Text>
+              <Text style={styles.nodeText}>Materia #{index + 1}</Text>
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.itemCode}>{item.codigo}</Text>
@@ -155,8 +212,9 @@ export const AsignaturasScreen = () => {
             </TouchableOpacity>
           </View>
         )) : (
-          <Text style={styles.emptyText}>No hay asignaturas en la lista enlazada.</Text>
+          <Text style={styles.emptyText}>No hay materias registradas.</Text>
         )}
+      </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -63,7 +63,7 @@ export const NotasScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Historial de Calificaciones</Text>
-      <Text style={styles.subtitle}>Estructura: Árbol Binario de Búsqueda (BST)</Text>
+      <Text style={styles.subtitle}>Organización y consulta de calificaciones</Text>
 
       {/* Formulario de Inserción */}
       <View style={styles.formContainer}>
@@ -91,12 +91,12 @@ export const NotasScreen = () => {
         />
 
         <TouchableOpacity style={styles.button} onPress={handleAgregar}>
-          <Text style={styles.buttonText}>Insertar en Árbol Binario</Text>
+          <Text style={styles.buttonText}>Guardar calificación</Text>
         </TouchableOpacity>
       </View>
 
       {/* Selectores de Recorrido */}
-      <Text style={styles.sectionHeader}>Tipo de Recorrido del Árbol</Text>
+      <Text style={styles.sectionHeader}>Orden de las calificaciones</Text>
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, tipoRecorrido === 'in' && styles.activeTab]}

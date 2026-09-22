@@ -42,6 +42,38 @@ export class ArbolBinario<T> {
     return null;
   }
 
+  public remove(clave: number): boolean {
+    let eliminado = false;
+
+    const eliminarNodo = (nodo: NodoArbol<T> | null): NodoArbol<T> | null => {
+      if (nodo === null) return null;
+
+      if (clave < nodo.clave) {
+        nodo.izquierdo = eliminarNodo(nodo.izquierdo);
+        return nodo;
+      }
+
+      if (clave > nodo.clave) {
+        nodo.derecho = eliminarNodo(nodo.derecho);
+        return nodo;
+      }
+
+      eliminado = true;
+      if (nodo.izquierdo === null) return nodo.derecho;
+      if (nodo.derecho === null) return nodo.izquierdo;
+
+      let sucesor = nodo.derecho;
+      while (sucesor.izquierdo !== null) sucesor = sucesor.izquierdo;
+      nodo.clave = sucesor.clave;
+      nodo.valor = sucesor.valor;
+      nodo.derecho = eliminarNodo(nodo.derecho);
+      return nodo;
+    };
+
+    this.raiz = eliminarNodo(this.raiz);
+    return eliminado;
+  }
+
   // Recorrido Inorden (Izquierda - Raíz - Derecha)
   public inOrden(nodo: NodoArbol<T> | null = this.raiz, resultado: T[] = []): T[] {
     if (nodo !== null) {
@@ -70,5 +102,9 @@ export class ArbolBinario<T> {
       resultado.push(nodo.valor);
     }
     return resultado;
+  }
+
+  public clear(): void {
+    this.raiz = null;
   }
 }

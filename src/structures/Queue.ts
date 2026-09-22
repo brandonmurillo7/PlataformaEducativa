@@ -43,4 +43,10 @@ export class Queue<T> {
     }
     return result;
   }
+
+  clear(): void {
+    this.head = null;
+    this.tail = null;
+    this.size = 0;
+  }
 }

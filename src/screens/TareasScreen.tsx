@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,34 +11,64 @@ import {
   Alert,
 } from 'react-native';
 import { useAppData } from '../context/AppDataContext';
+import { supabase } from '../lib/supabase';
 
 export const TareasScreen = () => {
   const { pilaEntregas, refreshState } = useAppData();
 
   const [nombreTarea, setNombreTarea] = useState('');
 
+  useEffect(() => {
+    const cargarTareas = async () => {
+      const { data, error } = await supabase.from('tareas').select('nombre').order('created_at', { ascending: true });
+      if (error) {
+        Alert.alert('Error de conexión', 'No se pudieron cargar las tareas.');
+        return;
+      }
+      pilaEntregas.clear();
+      data.forEach((item) => pilaEntregas.push(item.nombre));
+      refreshState();
+    };
+    void cargarTareas();
+  }, [pilaEntregas, refreshState]);
+
   // Apilar una nueva entrega (Push)
-  const handlePush = () => {
+  const handlePush = async () => {
     if (!nombreTarea.trim()) {
       Alert.alert('Error', 'Ingresa el nombre o código de la tarea enviada.');
       return;
     }
 
+    const { error } = await supabase.from('tareas').insert({ nombre: nombreTarea.trim() });
+    if (error) {
+      Alert.alert('Error', `No se pudo guardar la tarea: ${error.message}`);
+      return;
+    }
     pilaEntregas.push(nombreTarea.trim());
     setNombreTarea('');
     refreshState();
   };
 
   // Desapilar / Procesar la última entrega (Pop)
-  const handlePop = () => {
+  const handlePop = async () => {
     if (pilaEntregas.isEmpty()) {
-      Alert.alert('Pila Vacía', 'No hay tareas pendientes en la pila para procesar.');
+      Alert.alert('Sin entregas', 'No hay entregas pendientes para procesar.');
       return;
     }
 
     const tareaProcesada = pilaEntregas.pop();
+        if (tareaProcesada) {
+          const { error } = await supabase
+            .from('tareas')
+            .delete()
+            .eq('nombre', tareaProcesada)
+            .limit(1);
+          if (error) {
+            Alert.alert('Error', `No se pudo actualizar Supabase: ${error.message}`);
+          }
+        }
     refreshState();
-    Alert.alert('Tarea Procesada', `Se ha calificado/removido del tope: "${tareaProcesada}"`);
+    Alert.alert('Entrega procesada', `Se ha procesado la entrega "${tareaProcesada}".`);
   };
 
   const tareasArray = pilaEntregas.toArray();
@@ -50,8 +80,14 @@ export const TareasScreen = () => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       style={styles.container}
     >
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={styles.title}>Entregas de Tareas</Text>
-      <Text style={styles.subtitle}>Estructura: Pila (Stack - LIFO)</Text>
+      <Text style={styles.subtitle}>Las últimas entregas se atienden primero</Text>
 
       {/* Formulario de Apilar */}
       <View style={styles.formContainer}>
@@ -65,11 +101,11 @@ export const TareasScreen = () => {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity style={[styles.button, styles.pushButton]} onPress={handlePush}>
-            <Text style={styles.buttonText}>Apilar (Push)</Text>
+            <Text style={styles.buttonText}>Agregar entrega</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.button, styles.popButton]} onPress={handlePop}>
-            <Text style={styles.buttonText}>Desapilar (Pop)</Text>
+            <Text style={styles.buttonText}>Procesar última entrega</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -77,22 +113,17 @@ export const TareasScreen = () => {
       {/* Indicador del Tope */}
       {topeTarea && (
         <View style={styles.topCard}>
-          <Text style={styles.topLabel}>EN EL TOPE (PEEK):</Text>
+          <Text style={styles.topLabel}>ENTREGA MÁS RECIENTE:</Text>
           <Text style={styles.topValue}>{topeTarea}</Text>
         </View>
       )}
 
       {/* Visualización de la Pila */}
       <Text style={styles.sectionHeader}>
-        Estado Actual de la Pila ({tareasArray.length})
+        Entregas pendientes ({tareasArray.length})
       </Text>
 
-      <ScrollView
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View>
         {tareasArray.length > 0 ? tareasArray.map((item, index) => (
           <View key={`${item}-${index}`} style={[styles.card, index === 0 && styles.cardTop]}>
             <View style={styles.badge}>
@@ -103,8 +134,9 @@ export const TareasScreen = () => {
             <Text style={styles.itemText}>{item}</Text>
           </View>
         )) : (
-          <Text style={styles.emptyText}>La pila está vacía. Agrega una entrega con Push.</Text>
+          <Text style={styles.emptyText}>No hay entregas pendientes. Agrega una nueva entrega.</Text>
         )}
+      </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -146,10 +178,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   button: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
     alignItems: 'center',
+    flex: 1,
+    height: 52,
+    justifyContent: 'center',
+    borderRadius: 8,
   },
   pushButton: {
     backgroundColor: '#F59E0B',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAppData } from '../context/AppDataContext';
 import { Tutorias } from '../models/Tutorias';
+import { supabase } from '../lib/supabase';
 
 export const TutoriasScreen = () => {
   const { colaTutorias, refreshState } = useAppData();
@@ -20,8 +21,41 @@ export const TutoriasScreen = () => {
   const [materia, setMateria] = useState('');
   const [tema, setTema] = useState('');
 
+  useEffect(() => {
+    const cargarTutorias = async () => {
+      let { data, error } = await supabase
+        .from('tutorias')
+        .select('id_estudiante, nombre_estudiante, materia, tema, fecha')
+        .order('created_at', { ascending: true });
+
+      if (error?.message.toLowerCase().includes('materia')) {
+        const respuestaAnterior = await supabase
+          .from('tutorias')
+          .select('id_estudiante, nombre_estudiante, tema, fecha')
+          .order('created_at', { ascending: true });
+        data = respuestaAnterior.data?.map((item) => ({ ...item, materia: 'No especificada' })) ?? null;
+        error = respuestaAnterior.error;
+      }
+
+      if (error) {
+        Alert.alert('Error de conexión', `No se pudieron cargar las tutorías: ${error.message}`);
+        return;
+      }
+      colaTutorias.clear();
+      data?.forEach((item) => colaTutorias.enqueue(new Tutorias(
+        item.id_estudiante,
+        item.nombre_estudiante,
+        item.materia,
+        item.tema,
+        new Date(item.fecha),
+      )));
+      refreshState();
+    };
+    void cargarTutorias();
+  }, [colaTutorias, refreshState]);
+
   // Encolar una nueva solicitud de tutoría (Enqueue)
-  const handleEnqueue = () => {
+  const handleEnqueue = async () => {
     if (!estudiante.trim() || !materia.trim() || !tema.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos de la tutoría.');
       return;
@@ -30,9 +64,30 @@ export const TutoriasScreen = () => {
     const nuevaTutoria = new Tutorias(
       estudiante.trim(),
       estudiante.trim(),
+      materia.trim(),
       tema.trim()
     );
 
+    let { error } = await supabase.from('tutorias').insert({
+      id_estudiante: nuevaTutoria.idEstudiante,
+      nombre_estudiante: nuevaTutoria.nombreEstudiante,
+      materia: nuevaTutoria.materia,
+      tema: nuevaTutoria.tema,
+    });
+
+    if (error?.message.toLowerCase().includes('materia')) {
+      const respuestaAnterior = await supabase.from('tutorias').insert({
+        id_estudiante: nuevaTutoria.idEstudiante,
+        nombre_estudiante: nuevaTutoria.nombreEstudiante,
+        tema: nuevaTutoria.tema,
+      });
+      error = respuestaAnterior.error;
+    }
+
+    if (error) {
+      Alert.alert('Error', `No se pudo guardar la tutoría: ${error.message}`);
+      return;
+    }
     colaTutorias.enqueue(nuevaTutoria);
 
     setEstudiante('');
@@ -42,13 +97,23 @@ export const TutoriasScreen = () => {
   };
 
   // Desencolar / Atender la primera tutoría en espera (Dequeue)
-  const handleDequeue = () => {
+  const handleDequeue = async () => {
     if (colaTutorias.isEmpty()) {
-      Alert.alert('Cola Vacía', 'No hay estudiantes en la cola de tutorías.');
+      Alert.alert('Sin solicitudes', 'No hay solicitudes de tutoría pendientes.');
       return;
     }
 
     const tutoriaAtendida = colaTutorias.dequeue();
+        if (tutoriaAtendida) {
+          const { data } = await supabase
+            .from('tutorias')
+            .select('id')
+            .eq('id_estudiante', tutoriaAtendida.idEstudiante)
+            .eq('tema', tutoriaAtendida.tema)
+            .order('created_at', { ascending: true })
+            .limit(1);
+          if (data?.[0]) await supabase.from('tutorias').delete().eq('id', data[0].id);
+        }
     refreshState();
     
     if (tutoriaAtendida) {
@@ -68,8 +133,14 @@ export const TutoriasScreen = () => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       style={styles.container}
     >
-      <Text style={styles.title}>Cola de Tutorías</Text>
-      <Text style={styles.subtitle}>Estructura: Cola (Queue - FIFO)</Text>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+      <Text style={styles.title}>Solicitudes de tutoría</Text>
+      <Text style={styles.subtitle}>Las solicitudes se atienden por orden de llegada</Text>
 
       {/* Formulario de Encolar */}
       <View style={styles.formContainer}>
@@ -97,11 +168,11 @@ export const TutoriasScreen = () => {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity style={[styles.button, styles.enqueueButton]} onPress={handleEnqueue}>
-            <Text style={styles.buttonText}>Encolar (Enqueue)</Text>
+            <Text style={styles.buttonText}>Agregar solicitud</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.button, styles.dequeueButton]} onPress={handleDequeue}>
-            <Text style={styles.buttonText}>Atender (Dequeue)</Text>
+            <Text style={styles.buttonText}>Atender siguiente solicitud</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -109,7 +180,7 @@ export const TutoriasScreen = () => {
       {/* Indicador del Primero en la Fila */}
       {proximaTutoria && (
         <View style={styles.headCard}>
-          <Text style={styles.headLabel}>SIGUIENTE EN ATENDER (PEEK):</Text>
+          <Text style={styles.headLabel}>SIGUIENTE SOLICITUD:</Text>
           <Text style={styles.headValue}>{proximaTutoria.nombreEstudiante}</Text>
           <Text style={styles.headSubtext}>Tema: {proximaTutoria.tema}</Text>
         </View>
@@ -120,12 +191,7 @@ export const TutoriasScreen = () => {
         Estudiantes en Espera ({tutoriasArray.length})
       </Text>
 
-      <ScrollView
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View>
         {tutoriasArray.length > 0 ? tutoriasArray.map((item, index) => (
           <View key={`${item.idEstudiante}-${index}`} style={[styles.card, index === 0 && styles.cardHead]}>
             <View style={styles.badge}>
@@ -140,8 +206,9 @@ export const TutoriasScreen = () => {
             </View>
           </View>
         )) : (
-          <Text style={styles.emptyText}>La cola está vacía. No hay tutorías pendientes.</Text>
+          <Text style={styles.emptyText}>No hay solicitudes de tutoría pendientes.</Text>
         )}
+      </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -184,10 +251,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   button: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
     alignItems: 'center',
+    flex: 1,
+    height: 58,
+    justifyContent: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 8,
   },
   enqueueButton: {
     backgroundColor: '#8B5CF6',
@@ -199,6 +268,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 14,
+    textAlign: 'center',
   },
   headCard: {
     backgroundColor: '#4C1D95',

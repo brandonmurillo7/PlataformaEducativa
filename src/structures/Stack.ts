@@ -36,4 +36,9 @@ export class Stack<T> {
     }
     return result;
   }
+
+  clear(): void {
+    this.top = null;
+    this.size = 0;
+  }
 }

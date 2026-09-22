@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 import { LinkedList } from '../structures/LinkedList';
 import { Stack } from '../structures/Stack';
 import { Queue } from '../structures/Queue';
@@ -10,11 +10,9 @@ import { Estudiantes } from '../models/Estudiantes';
 import { Asignatura } from '../models/Asignatura';
 import { Calificaciones } from '../models/Calificaciones';
 import { Tutorias } from '../models/Tutorias';
-import { Usuario } from '../models/Usuario';
 
 interface AppContextType {
   tablaEstudiantes: TablaHash<Estudiantes>;
-  tablaUsuarios: TablaHash<Usuario>;
   listaAsignaturas: LinkedList<Asignatura>;
   pilaEntregas: Stack<string>;
   colaTutorias: Queue<Tutorias>;
@@ -27,14 +25,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tablaEstudiantes] = useState(new TablaHash<Estudiantes>(10));
-  const [tablaUsuarios] = useState(() => {
-    const tabla = new TablaHash<Usuario>(10);
-    tabla.set(
-      'estudiante@campus.edu',
-      new Usuario('estudiante@campus.edu', 'Estudiante Demo', '123')
-    );
-    return tabla;
-  });
   const [listaAsignaturas] = useState(new LinkedList<Asignatura>());
   const [pilaEntregas] = useState(new Stack<string>());
   const [colaTutorias] = useState(new Queue<Tutorias>());
@@ -42,13 +32,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [redEstudiantes] = useState(new Grafos<Estudiantes>());
 
   const [, setTick] = useState(0);
-  const refreshState = () => setTick((prev) => prev + 1);
+  const refreshState = useCallback(() => setTick((prev) => prev + 1), []);
 
   return (
     <AppContext.Provider
       value={{
         tablaEstudiantes,
-        tablaUsuarios,
         listaAsignaturas,
         pilaEntregas,
         colaTutorias,

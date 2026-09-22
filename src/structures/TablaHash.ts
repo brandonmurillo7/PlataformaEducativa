@@ -81,4 +81,8 @@ export class TablaHash<T> {
     }
     return elementos;
   }
+
+  public clear(): void {
+    this.tabla = new Array(this.tamano).fill(null);
+  }
 }

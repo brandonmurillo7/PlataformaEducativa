@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-const fallbackSupabaseUrl = 'https://tuggmosuqiasletsjera.supabase.co';
+const fallbackSupabaseUrl = 'https://tugqmosuqiasletsjera.supabase.co';
 const fallbackSupabaseAnonKey = 'sb_publishable_oKlOsd9n98HmQwUBrc4ktQ_Ne4HMvj2';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || fallbackSupabaseUrl;

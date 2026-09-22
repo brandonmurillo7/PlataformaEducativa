@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   View,
   Text,
   TextInput,
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 import { useAppData } from '../context/AppDataContext';
 import { Estudiantes } from '../models/Estudiantes';
+import { supabase } from '../lib/supabase';
 
 export const GrafosScreen = () => {
   const { redEstudiantes, refreshState } = useAppData();
@@ -22,15 +25,57 @@ export const GrafosScreen = () => {
   const [inicioRecorrido, setInicioRecorrido] = useState('');
   const [modoRecorrido, setModoRecorrido] = useState<'bfs' | 'dfs'>('bfs');
   const [resultadoRecorrido, setResultadoRecorrido] = useState<string[]>([]);
+  const [estudiantesDisponibles, setEstudiantesDisponibles] = useState<Estudiantes[]>([]);
+  const [mostrarEstudiantes, setMostrarEstudiantes] = useState(false);
+
+  useEffect(() => {
+    const cargarRed = async () => {
+      const [{ data: estudiantes, error: estudiantesError }, { data: conexiones, error: conexionesError }] = await Promise.all([
+        supabase.from('estudiantes').select('id, nombre, correo, carrera'),
+        supabase.from('conexiones_estudiantes').select('estudiante_origen, estudiante_destino'),
+      ]);
+
+      if (estudiantesError || conexionesError) {
+        Alert.alert('Error de conexión', 'No se pudo cargar la red de estudiantes.');
+        return;
+      }
+
+      redEstudiantes.limpiar();
+      setEstudiantesDisponibles(
+        estudiantes.map((item) => new Estudiantes(item.id, item.nombre, item.correo, item.carrera))
+      );
+      estudiantes.forEach((item) => {
+        redEstudiantes.agregarVertice(item.id, new Estudiantes(item.id, item.nombre, item.correo, item.carrera));
+      });
+      conexiones.forEach((conexion) => {
+        redEstudiantes.agregarArista(conexion.estudiante_origen, conexion.estudiante_destino);
+      });
+      refreshState();
+    };
+
+    void cargarRed();
+  }, [redEstudiantes, refreshState]);
 
   // Agregar un nodo al grafo
-  const handleAgregarNodo = () => {
+  const handleAgregarNodo = async () => {
     if (!nuevoEstudiante.trim()) {
-      Alert.alert('Error', 'Ingresa el nombre del estudiante.');
+      Alert.alert('Error', 'Selecciona un estudiante registrado.');
       return;
     }
 
     const nombre = nuevoEstudiante.trim();
+    const correoRed = `${nombre.toLowerCase().replace(/\s+/g, '.')}@red.local`;
+    const { error: studentError } = await supabase.from('estudiantes').upsert({
+      id: nombre,
+      nombre,
+      correo: correoRed,
+      carrera: 'Red de estudiantes',
+    });
+    if (studentError) {
+      Alert.alert('Error', `No se pudo guardar el estudiante: ${studentError.message}`);
+      return;
+    }
+
     redEstudiantes.agregarVertice(
       nombre,
       new Estudiantes(nombre, nombre, '', '')
@@ -41,7 +86,7 @@ export const GrafosScreen = () => {
   };
 
   // Conectar dos nodos en el grafo
-  const handleConectar = () => {
+  const handleConectar = async () => {
     if (!estudianteOrigen.trim() || !estudianteDestino.trim()) {
       Alert.alert('Error', 'Ingresa ambos estudiantes para conectar.');
       return;
@@ -55,16 +100,48 @@ export const GrafosScreen = () => {
     const origen = estudianteOrigen.trim();
     const destino = estudianteDestino.trim();
     if (!redEstudiantes.tieneVertice(origen) || !redEstudiantes.tieneVertice(destino)) {
-      Alert.alert('Error', 'Primero registra ambos estudiantes como nodos.');
+      Alert.alert('Error', 'Primero agrega ambos estudiantes a la red.');
       return;
     }
 
     redEstudiantes.agregarArista(origen, destino);
+    const { error } = await supabase.from('conexiones_estudiantes').upsert({
+      estudiante_origen: origen,
+      estudiante_destino: destino,
+    });
+    if (error) {
+      Alert.alert('Error', `No se pudo guardar la conexión: ${error.message}`);
+      return;
+    }
 
     setEstudianteOrigen('');
     setEstudianteDestino('');
     refreshState();
     Alert.alert('Éxito', 'Conexión establecida entre estudiantes.');
+  };
+
+  const handleEliminarConexion = async (origen: string, destino: string) => {
+    const [primeraEliminacion, segundaEliminacion] = await Promise.all([
+      supabase
+        .from('conexiones_estudiantes')
+        .delete()
+        .eq('estudiante_origen', origen)
+        .eq('estudiante_destino', destino),
+      supabase
+        .from('conexiones_estudiantes')
+        .delete()
+        .eq('estudiante_origen', destino)
+        .eq('estudiante_destino', origen),
+    ]);
+    const error = primeraEliminacion.error || segundaEliminacion.error;
+
+    if (error) {
+      Alert.alert('Error', `No se pudo eliminar la relación: ${error.message}`);
+      return;
+    }
+
+    redEstudiantes.eliminarArista(origen, destino);
+    refreshState();
   };
 
   const listaAdyacencia = redEstudiantes.obtenerAdyacencia().map(({ id, vecinos }) => ({
@@ -95,29 +172,37 @@ export const GrafosScreen = () => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       style={styles.container}
     >
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={styles.title}>Red de Estudiantes</Text>
       <Text style={styles.subtitle}>
-        Estructura: Grafo No Dirigido (Lista de Adyacencia)
+        Red de colaboración entre estudiantes
       </Text>
 
       {/* Formulario 1: Agregar Estudiante */}
       <View style={styles.formContainer}>
-        <Text style={styles.sectionTitle}>1. Registrar Estudiante en la Red</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Nombre del Estudiante"
-          placeholderTextColor="#888"
-          value={nuevoEstudiante}
-          onChangeText={setNuevoEstudiante}
-        />
+        <Text style={styles.sectionTitle}>1. Agregar estudiante a la red</Text>
+        <Pressable
+          onPress={() => setMostrarEstudiantes(true)}
+          style={styles.selectButton}
+        >
+          <Text style={nuevoEstudiante ? styles.selectText : styles.selectPlaceholder}>
+            {nuevoEstudiante || 'Selecciona un estudiante registrado'}
+          </Text>
+          <Text style={styles.selectArrow}>⌄</Text>
+        </Pressable>
         <TouchableOpacity style={styles.button} onPress={handleAgregarNodo}>
-          <Text style={styles.buttonText}>Agregar Nodo (Vértice)</Text>
+          <Text style={styles.buttonText}>Agregar estudiante</Text>
         </TouchableOpacity>
       </View>
 
       {/* Formulario 2: Conectar Estudiantes */}
       <View style={styles.formContainer}>
-        <Text style={styles.sectionTitle}>2. Crear Conexión (Arista)</Text>
+        <Text style={styles.sectionTitle}>2. Conectar estudiantes</Text>
         <TextInput
           style={styles.input}
           placeholder="Estudiante 1"
@@ -141,7 +226,7 @@ export const GrafosScreen = () => {
       </View>
 
       <View style={styles.formContainer}>
-        <Text style={styles.sectionTitle}>3. Recorrer la red</Text>
+        <Text style={styles.sectionTitle}>3. Explorar la red</Text>
         <TextInput
           style={styles.input}
           placeholder="Estudiante inicial"
@@ -154,13 +239,13 @@ export const GrafosScreen = () => {
             style={[styles.modeButton, modoRecorrido === 'bfs' && styles.modeButtonActive]}
             onPress={() => setModoRecorrido('bfs')}
           >
-            <Text style={styles.buttonText}>BFS</Text>
+            <Text style={styles.buttonText}>Por niveles</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeButton, modoRecorrido === 'dfs' && styles.modeButtonActive]}
             onPress={() => setModoRecorrido('dfs')}
           >
-            <Text style={styles.buttonText}>DFS</Text>
+            <Text style={styles.buttonText}>En profundidad</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity style={styles.button} onPress={handleRecorrido}>
@@ -168,28 +253,32 @@ export const GrafosScreen = () => {
         </TouchableOpacity>
         {resultadoRecorrido.length > 0 && (
           <Text style={styles.traversalResult}>
-            {modoRecorrido.toUpperCase()}: {resultadoRecorrido.join(' -> ')}
+            Recorrido: {resultadoRecorrido.join(' -> ')}
           </Text>
         )}
       </View>
 
       {/* Visualización de la Red */}
-      <Text style={styles.sectionTitle}>Lista de Conexiones</Text>
-      <ScrollView
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <Text style={styles.sectionTitle}>Relaciones registradas</Text>
+      <View>
         {listaAdyacencia.length > 0 ? listaAdyacencia.map((item) => (
           <View key={item.vertice} style={styles.card}>
             <Text style={styles.nodeName}>👤 {item.vertice}</Text>
             <Text style={styles.connectionsTitle}>Conectado con:</Text>
             {item.vecinos.length > 0 ? (
               <View style={styles.badgesContainer}>
-                {item.vecinos.map((vecino: string, index: number) => (
-                  <View key={index} style={styles.badge}>
-                    <Text style={styles.badgeText}>{vecino}</Text>
+                {item.vecinos.map((vecino: string) => (
+                  <View key={vecino} style={styles.connectionRow}>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{vecino}</Text>
+                    </View>
+                    <TouchableOpacity
+                      accessibilityLabel={`Eliminar relación con ${vecino}`}
+                      onPress={() => handleEliminarConexion(item.vertice, vecino)}
+                      style={styles.deleteConnectionButton}
+                    >
+                      <Text style={styles.deleteConnectionText}>Eliminar</Text>
+                    </TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -204,7 +293,38 @@ export const GrafosScreen = () => {
             No hay estudiantes en la red universitaria.
           </Text>
         )}
+      </View>
       </ScrollView>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={mostrarEstudiantes}
+        onRequestClose={() => setMostrarEstudiantes(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setMostrarEstudiantes(false)}>
+          <View style={styles.studentMenu}>
+            <Text style={styles.menuTitle}>Selecciona un estudiante</Text>
+            {estudiantesDisponibles.length > 0 ? estudiantesDisponibles.map((estudiante) => (
+              <Pressable
+                key={estudiante.id}
+                onPress={() => {
+                  setNuevoEstudiante(estudiante.id);
+                  setMostrarEstudiantes(false);
+                }}
+                style={styles.studentOption}
+              >
+                <Text style={styles.studentOptionName}>{estudiante.nombre}</Text>
+                <Text style={styles.studentOptionId}>ID: {estudiante.id}</Text>
+              </Pressable>
+            )) : (
+              <Text style={styles.emptyMenuText}>Primero registra estudiantes en la pestaña Estudiantes.</Text>
+            )}
+            <Pressable onPress={() => setMostrarEstudiantes(false)} style={styles.closeMenuButton}>
+              <Text style={styles.closeMenuText}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -247,6 +367,80 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  selectButton: {
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderColor: '#334155',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    minHeight: 48,
+    paddingHorizontal: 12,
+  },
+  selectText: {
+    color: '#F8FAFC',
+    flex: 1,
+  },
+  selectPlaceholder: {
+    color: '#888',
+    flex: 1,
+  },
+  selectArrow: {
+    color: '#C4B5FD',
+    fontSize: 22,
+    marginLeft: 8,
+  },
+  modalBackdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  studentMenu: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    maxHeight: '75%',
+    padding: 20,
+  },
+  menuTitle: {
+    color: '#F8FAFC',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 14,
+  },
+  studentOption: {
+    borderBottomColor: '#334155',
+    borderBottomWidth: 1,
+    paddingVertical: 13,
+  },
+  studentOptionName: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  studentOptionId: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  emptyMenuText: {
+    color: '#CBD5E1',
+    lineHeight: 20,
+    paddingVertical: 16,
+  },
+  closeMenuButton: {
+    alignItems: 'center',
+    backgroundColor: '#334155',
+    borderRadius: 8,
+    marginTop: 16,
+    padding: 13,
+  },
+  closeMenuText: {
+    color: '#F8FAFC',
+    fontWeight: '700',
   },
   button: {
     backgroundColor: '#8B5CF6',
@@ -306,6 +500,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
+  connectionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
   badge: {
     backgroundColor: '#4C1D95',
     paddingHorizontal: 10,
@@ -316,6 +515,17 @@ const styles = StyleSheet.create({
     color: '#DDD6FE',
     fontSize: 12,
     fontWeight: '600',
+  },
+  deleteConnectionButton: {
+    backgroundColor: '#991B1B',
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  deleteConnectionText: {
+    color: '#FECACA',
+    fontSize: 10,
+    fontWeight: '700',
   },
   emptyConnections: {
     color: '#64748B',

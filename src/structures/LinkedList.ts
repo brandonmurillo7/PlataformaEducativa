@@ -62,4 +62,9 @@ export class LinkedList<T> {
   public toArray(): T[] {
     return this.traverse();
   }
+
+  public clear(): void {
+    this.head = null;
+    this.size = 0;
+  }
 }
